@@ -1,0 +1,52 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "api",
+  "compatibility_date": "2025-08-03",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "./src/index.ts",
+  "d1_databases": [
+    {
+      "binding": "APP_DB",
+      "database_name": "meal-planner-dev",
+      "database_id": "edb96e54-498e-4450-a1b0-9af36ac5214d",
+      "migrations_dir": "migrations",
+      "experimental_remote": true,
+    },
+  ],
+
+  "secrets_store_secrets": [
+    {
+      "binding": "JWT_SECRET",
+      "store_id": "default",
+      "secret_name": "dev_meal-planner_jwt-secret",
+    },
+  ],
+
+  "vars": {
+    "AUTH0_AUDIENCE": "https://api.meal.guide",
+    "AUTH0_DOMAIN": "smurfville-dev.eu.auth0.com",
+  },
+
+  "env": {
+    "production": {
+      "d1_databases": [
+        {
+          "binding": "APP_DB",
+          "database_name": "meal-planner-prd",
+          "database_id": "69d945bc-fca2-45ce-afad-c4a00306a548",
+          "migrations_dir": "migrations",
+        },
+      ],
+      "vars": {
+        "AUTH0_DOMAIN": "smurfville.eu.auth0.com",
+      },
+      "secrets_store_secrets": [
+        {
+          "binding": "JWT_SECRET",
+          "store_id": "3dc811c1f13840e09cbcc91b6c72b716",
+          "secret_name": "prd_meal-planner_jwt-secret",
+        },
+      ],
+    },
+  },
+}

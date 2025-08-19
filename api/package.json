@@ -1,0 +1,26 @@
+{
+  "name": "api",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "$npm_execpath run build && vite preview",
+    "deploy": "$npm_execpath run build && wrangler deploy",
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+  },
+  "dependencies": {
+    "drizzle-kit": "^0.31.4",
+    "drizzle-orm": "^0.44.4",
+    "hono": "^4.9.0",
+    "jose": "^6.0.12",
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.2.3",
+    "@types/node": "^24.2.1",
+    "prettier": "3.6.2",
+    "vite": "^6.3.5",
+    "vite-ssr-components": "^0.3.0",
+    "wrangler": "^4.31.0"
+  }
+}

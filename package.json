@@ -1,21 +1,22 @@
 {
   "name": "meal-planner",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "1.0.0",
+  "description": "A very simple meal planner app",
+  "main": "index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smurfpandey/meal-planner.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/smurfpandey/meal-planner/issues"
+  },
+  "homepage": "https://github.com/smurfpandey/meal-planner#readme",
   "devDependencies": {
-    "vite": "^7.1.0"
-  },
-  "dependencies": {
-    "@tailwindcss/vite": "^4.1.11",
-    "alpinejs": "^3.14.9",
-    "basecoat-css": "^0.3.1",
-    "lucide": "^0.539.0",
-    "tailwindcss": "^4.1.11"
+    "prettier": "3.6.2"
   }
 }

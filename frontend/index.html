@@ -1,0 +1,903 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Meal Planner App</title>
+    <style>
+      [x-cloak] {
+        display: none !important;
+      }
+    </style>
+  </head>
+
+  <body class="min-h-screen bg-gray-50" x-data="mealPlanner()" x-cloak>
+    <div id="app" class="max-w-6xl mx-auto p-4 min-h-screen">
+      <!-- Full Page Loader -->
+      <div
+        x-show="isLoading"
+        class="min-h-screen flex items-center justify-center"
+      >
+        <div className="flex text-center gap-2 text-gray-600">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="animate-spin inline"
+          >
+            <path d="M12 2v4" />
+            <path d="m16.2 7.8 2.9-2.9" />
+            <path d="M18 12h4" />
+            <path d="m16.2 16.2 2.9 2.9" />
+            <path d="M12 18v4" />
+            <path d="m4.9 19.1 2.9-2.9" />
+            <path d="M2 12h4" />
+            <path d="m4.9 4.9 2.9 2.9" />
+          </svg>
+          <span>Loading...</span>
+        </div>
+      </div>
+
+      <!-- Authentication required message -->
+      <div
+        x-show="!isLoading && !isAuthenticated"
+        class="min-h-screen flex items-center justify-center text-center py-16"
+      >
+        <div class="card">
+          <header class="flex items-center justify-center">
+            <div
+              class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto"
+            >
+              <i data-lucide="utensils" class="w-8 h-8 text-blue-600"></i>
+            </div>
+          </header>
+          <section>
+            <h2 class="text-2xl font-bold text-gray-900 mb-2">
+              Authentication Required
+            </h2>
+            <p class="text-gray-600 mb-4">
+              Please sign in to access your meal planner
+            </p>
+          </section>
+          <footer class="flex flex-col items-center gap-2">
+            <button
+              @click="startLoginWithAuth0()"
+              class="btn w-full text-white px-6 py-3 rounded-md transition-colors"
+            >
+              Sign In to Continue
+            </button>
+          </footer>
+        </div>
+      </div>
+
+      <!-- Header -->
+      <header x-show="!isLoading && isAuthenticated" class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Meal Planner</h1>
+        <p class="text-gray-600">Plan your weekly meals and stay organized</p>
+      </header>
+
+      <!-- Main app content - only show when authenticated -->
+      <div x-show="!isLoading && isAuthenticated" class="tabs">
+        <!-- Navigation -->
+        <nav role="tablist" aria-orientation="horizontal" class="w-full mb-6">
+          <button
+            type="button"
+            role="tab"
+            id="tabs-tab-home"
+            aria-controls="tabs-panel-home"
+            aria-selected="true"
+            tabindex="0"
+          >
+            <i data-lucide="home" class="w-4 h-4"></i>
+            Home
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            id="tabs-tab-meals"
+            aria-controls="tabs-panel-meals"
+            aria-selected="false"
+            tabindex="1"
+          >
+            <i data-lucide="utensils" class="w-4 h-4"></i>
+            Meals
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            id="tabs-tab-plan"
+            aria-controls="tabs-panel-plan"
+            aria-selected="false"
+            tabindex="2"
+          >
+            <i data-lucide="calendar" class="w-4 h-4"></i>
+            Create Plan
+          </button>
+        </nav>
+
+        <!-- Home Panel -->
+        <div
+          role="tabpanel"
+          id="tabs-panel-home"
+          aria-labelledby="tabs-tab-home"
+          tabindex="-1"
+          aria-selected="true"
+          class="bg-white rounded-lg shadow-sm border"
+        >
+          <div class="p-6 border-b">
+            <!-- Added week navigation controls -->
+            <div class="flex items-center justify-between">
+              <h2 class="text-xl font-semibold">Weekly Meal Plan</h2>
+              <div class="flex items-center gap-4">
+                <button
+                  @click="navigateWeek(-1)"
+                  class="flex items-center gap-2 px-3 py-1 text-sm border rounded hover:bg-gray-50"
+                >
+                  <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                  Previous
+                </button>
+                <div
+                  class="text-sm font-medium text-gray-600"
+                  x-text="getMealWeekLabel()"
+                ></div>
+                <button
+                  @click="navigateWeek(1)"
+                  :disabled="currentWeekOffset >= 0"
+                  :class="currentWeekOffset >= 0 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'"
+                  class="flex items-center gap-2 px-3 py-1 text-sm border rounded"
+                >
+                  Next
+                  <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="p-6">
+            <!-- Updated to show current week's plan -->
+            <div x-show="isPlanEmpty()" class="text-center py-12">
+              <i
+                data-lucide="calendar"
+                class="w-16 h-16 mx-auto text-gray-400 mb-4"
+              ></i>
+              <h3 class="text-lg font-medium text-gray-900 mb-2">
+                No meal plan created yet
+              </h3>
+              <p
+                class="text-gray-600 mb-4"
+                x-text="currentWeekOffset === 0 ? 'Create your first weekly meal plan to get started' : 'No meal plan for this week'"
+              ></p>
+              <a
+                x-show="currentWeekOffset === 0"
+                href="/create-plan"
+                class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 no-underline"
+              >
+                Create Plan
+              </a>
+            </div>
+
+            <!-- <div x-show="!isPlanEmpty()" class="space-y-4">
+              <template x-for="(day, index) in days" :key="day">
+                <div class="border rounded-lg p-4">
+                  <h3
+                    class="font-semibold text-lg mb-3 capitalize"
+                    x-text="dayLabels[index]"
+                  ></h3>
+                  <div class="grid md:grid-cols-3 gap-4">
+                    
+                    <div>
+                      <h4 class="font-medium text-sm text-gray-600 mb-2">
+                        Breakfast
+                      </h4>
+                      <div
+                        x-show="getCurrentWeekPlan()[day].breakfast"
+                        class="bg-orange-50 border border-orange-200 rounded p-3"
+                      >
+                        <p
+                          class="font-medium mb-1"
+                          x-text="getCurrentWeekPlan()[day].breakfast?.name"
+                        ></p>
+                        <span
+                          class="inline-block bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded mb-2"
+                          x-text="getCurrentWeekPlan()[day].breakfast?.type"
+                        ></span>
+                        
+                        <div
+                          x-show="getCurrentWeekPlan()[day].breakfast?.items && getCurrentWeekPlan()[day].breakfast.items.length > 0"
+                          class="mt-2"
+                        >
+                          <p class="text-xs text-gray-500 mb-1">Items:</p>
+                          <div class="flex flex-wrap gap-1">
+                            <template
+                              x-for="item in getCurrentWeekPlan()[day].breakfast.items"
+                              :key="item.id"
+                            >
+                              <span
+                                class="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-0.5 rounded"
+                                x-text="item.name"
+                              ></span>
+                            </template>
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        x-show="!getCurrentWeekPlan()[day].breakfast"
+                        class="bg-gray-50 border-2 border-dashed border-gray-200 rounded p-2 text-center text-gray-500 text-sm"
+                      >
+                        No meal planned
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 class="font-medium text-sm text-gray-600 mb-2">
+                        Lunch
+                      </h4>
+                      <div
+                        x-show="getCurrentWeekPlan()[day].lunch"
+                        class="bg-green-50 border border-green-200 rounded p-3"
+                      >
+                        <p
+                          class="font-medium mb-1"
+                          x-text="getCurrentWeekPlan()[day].lunch?.name"
+                        ></p>
+                        <span
+                          class="inline-block bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded mb-2"
+                          x-text="getCurrentWeekPlan()[day].lunch?.type"
+                        ></span>
+                        
+                        <div
+                          x-show="getCurrentWeekPlan()[day].lunch?.items && getCurrentWeekPlan()[day].lunch.items.length > 0"
+                          class="mt-2"
+                        >
+                          <p class="text-xs text-gray-500 mb-1">Items:</p>
+                          <div class="flex flex-wrap gap-1">
+                            <template
+                              x-for="item in getCurrentWeekPlan()[day].lunch.items"
+                              :key="item.id"
+                            >
+                              <span
+                                class="inline-block bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded"
+                                x-text="item.name"
+                              ></span>
+                            </template>
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        x-show="!getCurrentWeekPlan()[day].lunch"
+                        class="bg-gray-50 border-2 border-dashed border-gray-200 rounded p-2 text-center text-gray-500 text-sm"
+                      >
+                        No meal planned
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 class="font-medium text-sm text-gray-600 mb-2">
+                        Dinner
+                      </h4>
+                      <div
+                        x-show="getCurrentWeekPlan()[day].dinner"
+                        class="bg-blue-50 border border-blue-200 rounded p-3"
+                      >
+                        <p
+                          class="font-medium mb-1"
+                          x-text="getCurrentWeekPlan()[day].dinner?.name"
+                        ></p>
+                        <span
+                          class="inline-block bg-gray-200 text-gray-800 text-xs px-2 py-1 rounded mb-2"
+                          x-text="getCurrentWeekPlan()[day].dinner?.type"
+                        ></span>
+                        
+                        <div
+                          x-show="getCurrentWeekPlan()[day].dinner?.items && getCurrentWeekPlan()[day].dinner.items.length > 0"
+                          class="mt-2"
+                        >
+                          <p class="text-xs text-gray-500 mb-1">Items:</p>
+                          <div class="flex flex-wrap gap-1">
+                            <template
+                              x-for="item in getCurrentWeekPlan()[day].dinner.items"
+                              :key="item.id"
+                            >
+                              <span
+                                class="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded"
+                                x-text="item.name"
+                              ></span>
+                            </template>
+                          </div>
+                        </div>
+                      </div>
+                      <div
+                        x-show="!getCurrentWeekPlan()[day].dinner"
+                        class="bg-gray-50 border-2 border-dashed border-gray-200 rounded p-2 text-center text-gray-500 text-sm"
+                      >
+                        No meal planned
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div> -->
+          </div>
+        </div>
+
+        <!-- Meals Panel -->
+        <div
+          role="tabpanel"
+          id="tabs-panel-meals"
+          aria-labelledby="tabs-tab-meals"
+          tabindex="-1"
+          aria-selected="false"
+          class="bg-white rounded-lg shadow-sm border"
+          hidden
+        >
+          <div class="p-6 border-b">
+            <!-- Subtabs for Meals section -->
+            <div class="flex items-center justify-between">
+              <h2 class="text-xl font-semibold">Meals & Dishes</h2>
+            </div>
+          </div>
+          <div class="p-6">
+            <div class="tabs">
+              <nav
+                role="tablist"
+                aria-orientation="horizontal"
+                class="w-full mb-6"
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  id="tabs-subtab-meals"
+                  aria-controls="tabs-subtab-panel-meals"
+                  aria-selected="true"
+                  tabindex="0"
+                >
+                  <i data-lucide="utensils" class="w-4 h-4"></i>
+                  Meals
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  id="tabs-subtab-dishes"
+                  aria-controls="tabs-subtab-panel-dishes"
+                  aria-selected="false"
+                  tabindex="0"
+                >
+                  <i data-lucide="package" class="w-4 h-4"></i>
+                  Dishes
+                </button>
+              </nav>
+
+              <div
+                role="tabpanel"
+                id="tabs-subtab-panel-meals"
+                aria-labelledby="tabs-subtab-meals"
+                tabindex="-1"
+                aria-selected="false"
+                class="p-6"
+              >
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="text-lg font-medium">
+                    All Meals (<span x-text="meals.length"></span>)
+                  </h3>
+                  <button
+                    @click="showAddMealModal()"
+                    class="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Add Meal
+                  </button>
+                </div>
+
+                <div x-show="meals.length === 0" class="text-center py-8">
+                  <i
+                    data-lucide="utensils"
+                    class="w-12 h-12 mx-auto text-gray-400 mb-4"
+                  ></i>
+                  <p class="text-gray-600">No meals found</p>
+                </div>
+              </div>
+
+              <!-- Dishes Tab Panel -->
+              <div
+                role="tabpanel"
+                id="tabs-subtab-panel-dishes"
+                aria-labelledby="tabs-subtab-dishes"
+                tabindex="-1"
+                aria-selected="false"
+                class="p-6"
+                hidden
+              >
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="text-lg font-medium">
+                    All Dishes (<span x-text="dishes.length"></span>)
+                  </h3>
+                  <button
+                    @click="showAddDishModal()"
+                    class="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Add Dish
+                  </button>
+                </div>
+
+                <div x-show="dishes.length === 0" class="text-center py-8">
+                  <i
+                    data-lucide="package"
+                    class="w-12 h-12 mx-auto text-gray-400 mb-4"
+                  ></i>
+                  <p class="text-gray-600 mb-4">No dishes found</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Meals subtab content -->
+          <!-- <div x-show="mealsSubTab === 'meals'" class="p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-lg font-medium">
+                All Meals (<span x-text="meals.length"></span>)
+              </h3>
+              <button
+                @click="showAddMealModal = true"
+                class="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                Add Meal
+              </button>
+            </div>
+
+            <div x-show="meals.length === 0" class="text-center py-8">
+              <i
+                data-lucide="utensils"
+                class="w-12 h-12 mx-auto text-gray-400 mb-4"
+              ></i>
+              <p class="text-gray-600">No meals found</p>
+            </div>
+
+            <div
+              x-show="meals.length > 0"
+              class="grid md:grid-cols-2 lg:grid-cols-3 gap-4"
+            >
+              <template x-for="meal in meals" :key="meal.id">
+                <div
+                  class="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                >
+                  <h3 class="font-semibold mb-2" x-text="meal.name"></h3>
+                  <div
+                    x-show="meal.dishes && meal.dishes.length > 0"
+                    class="mb-3"
+                  >
+                    <p class="text-xs text-gray-500 mb-1">Dishes:</p>
+                    <div class="flex flex-wrap gap-1">
+                      <template x-for="dish in meal.dishes" :key="dish.id">
+                        <span
+                          class="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded"
+                          x-text="dish.name"
+                        ></span>
+                      </template>
+                    </div>
+                  </div>
+
+                  <div class="flex flex-wrap gap-1 mt-2">
+                    <span
+                      class="inline-block border border-gray-300 text-gray-700 text-xs px-2 py-1 rounded"
+                      x-text="meal.type"
+                    ></span>
+                    <template
+                      x-for="mealTime in meal.mealTimes"
+                      :key="mealTime"
+                    >
+                      <span
+                        class="inline-block text-xs px-2 py-1 rounded text-white"
+                        :class="{
+                                            'bg-blue-600': mealTime === 'Breakfast',
+                                            'bg-gray-600': mealTime === 'Lunch', 
+                                            'bg-red-600': mealTime === 'Dinner'
+                                        }"
+                        x-text="mealTime"
+                      ></span>
+                    </template>
+                  </div>
+
+                  <div class="flex gap-2 mt-3">
+                    <button
+                      @click="editMeal(meal)"
+                      class="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                    >
+                      <i data-lucide="edit-2" class="w-3 h-3"></i>
+                      Edit
+                    </button>
+                    <button
+                      @click="deleteMeal(meal.id)"
+                      class="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                    >
+                      <i data-lucide="trash-2" class="w-3 h-3"></i>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div> -->
+
+          <!-- Dishes subtab content -->
+          <!-- <div x-show="mealsSubTab === 'dishes'" class="p-6">
+            
+            <div
+              x-show="dishes.length > 0"
+              class="grid md:grid-cols-3 lg:grid-cols-4 gap-4"
+            >
+              <template x-for="dish in dishes" :key="dish.id">
+                <div
+                  class="border rounded-lg p-3 hover:shadow-md transition-shadow"
+                >
+                  <h3 class="font-semibold mb-1" x-text="dish.name"></h3>
+                  <span
+                    class="inline-block text-xs px-2 py-1 rounded text-white"
+                    :class="{
+                                    'bg-orange-500': dish.category === 'Breakfast',
+                                    'bg-green-500': dish.category === 'Lunch', 
+                                    'bg-blue-500': dish.category === 'Dinner',
+                                    'bg-purple-500': dish.category === 'Beverage',
+                                    'bg-gray-500': dish.category === 'Side'
+                                }"
+                    x-text="dish.category"
+                  ></span>
+                  
+                  <div class="flex gap-2 mt-2">
+                    <button
+                      @click="editDish(dish)"
+                      class="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                    >
+                      <i data-lucide="edit-2" class="w-3 h-3"></i>
+                      Edit
+                    </button>
+                    <button
+                      @click="deleteDish(dish.id)"
+                      class="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                    >
+                      <i data-lucide="trash-2" class="w-3 h-3"></i>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div> -->
+        </div>
+
+        <!-- Create Plan Panel -->
+        <div
+          role="tabpanel"
+          id="tabs-panel-plan"
+          aria-labelledby="tabs-tab-plan"
+          tabindex="-1"
+          aria-selected="false"
+          class="bg-white rounded-lg shadow-sm border"
+          hidden
+        >
+          <div class="p-6 border-b">
+            <h2 class="text-xl font-semibold">Create Weekly Plan</h2>
+          </div>
+          <div class="p-6">
+            <div class="space-y-6">
+              <template x-for="(day, index) in days" :key="day['key']">
+                <div class="border rounded-lg p-4">
+                  <h3
+                    class="font-semibold text-lg mb-4 capitalize"
+                    x-text="day['label']"
+                  ></h3>
+                  <div class="grid md:grid-cols-3 gap-4">
+                    <template
+                      x-for="mealSlot in ['breakfast', 'lunch', 'dinner']"
+                      :key="mealSlot"
+                    >
+                      <div>
+                        <label
+                          class="block text-sm font-medium text-gray-700 mb-2 capitalize"
+                          x-text="mealSlot"
+                        ></label>
+                        <select
+                          :value="getCurrentWeekPlan()[day['key']][mealSlot]?.id || ''"
+                          @change="assignMealToPlan(day['key'], mealSlot, $event.target.value)"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option
+                            value=""
+                            x-text="`Select ${mealSlot}`"
+                          ></option>
+                          <option value="remove">Remove meal</option>
+                          <template
+                            x-for="meal in getMealsByMealTime(mealSlot.charAt(0).toUpperCase() + mealSlot.slice(1))"
+                            :key="meal.id"
+                          >
+                            <option
+                              :value="meal.id"
+                              x-text="`${meal.name} (${meal.type})`"
+                            ></option>
+                          </template>
+                        </select>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <dialog
+      id="addMealModal"
+      class="dialog w-full sm:max-w-[425px] max-h-[612px]"
+      aria-labelledby="dialog-add-meal-title"
+      aria-describedby="dialog-add-meal-description"
+      onclick="if (event.target === this) this.close()"
+    >
+      <article>
+        <header>
+          <h2 id="dialog-add-meal-title">Create New Meal</h2>
+          <p id="dialog-add-meal-description">
+            Combine dishes to create a complete meal
+          </p>
+        </header>
+      </article>
+    </dialog>
+
+    <dialog
+      id="addDishModal"
+      class="dialog w-full sm:max-w-[425px] max-h-[612px]"
+      aria-labelledby="dialog-add-dish-title"
+      aria-describedby="dialog-add-dish-description"
+      onclick="if (event.target === this) this.close()"
+    >
+      <article>
+        <header>
+          <h2 id="dialog-add-dish-title">Add New Dish</h2>
+          <p id="dialog-add-dish-description">
+            Add individual food dishes that can be combined into meals
+          </p>
+        </header>
+      </article>
+    </dialog>
+
+    <!-- Updated meals route to include subtabs for Meals and Dishes -->
+    <template x-route="/meals" name="meals" x-template.target.router-content>
+      <!-- Add Dish Modal -->
+      <div
+        x-show="showAddDishModal"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        x-cloak
+      >
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div class="p-6 border-b">
+            <h3 class="text-lg font-semibold">Add New Dish</h3>
+            <p class="text-gray-600 text-sm mt-1">
+              Add individual food dishes that can be combined into meals
+            </p>
+          </div>
+          <div class="p-6 space-y-4">
+            <div>
+              <label
+                for="dish-name"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Dish Name</label
+              >
+              <input
+                id="dish-name"
+                type="text"
+                x-model="newDish.name"
+                placeholder="e.g., Omelette, Bread, Tea, Rice"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label
+                for="dish-category"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Category</label
+              >
+              <select
+                id="dish-category"
+                x-model="newDish.category"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select category</option>
+                <option value="Breakfast">Breakfast</option>
+                <option value="Lunch">Lunch</option>
+                <option value="Dinner">Dinner</option>
+                <option value="Beverage">Beverage</option>
+                <option value="Side">Side</option>
+              </select>
+            </div>
+            <div class="flex gap-3 pt-4">
+              <button
+                @click="showAddDishModal = false; newDish = { name: '', category: '' }"
+                class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                @click="addDish()"
+                :disabled="!newDish.name || !newDish.category"
+                :class="(!newDish.name || !newDish.category) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
+                class="flex-1 text-white px-4 py-2 rounded-md transition-colors"
+              >
+                Add Dish
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Meal Modal with search functionality -->
+      <div
+        x-show="showAddMealModal"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+        x-cloak
+      >
+        <div
+          class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden"
+        >
+          <div class="p-6 border-b">
+            <h3 class="text-lg font-semibold">Create New Meal</h3>
+            <p class="text-gray-600 text-sm mt-1"></p>
+          </div>
+          <div class="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-200px)]">
+            <div>
+              <label
+                for="meal-name"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Meal Name</label
+              >
+              <input
+                id="meal-name"
+                type="text"
+                x-model="newMeal.name"
+                placeholder="e.g., Traditional Breakfast, Dal Rice Combo"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label
+                for="meal-type"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Meal Type</label
+              >
+              <input
+                id="meal-type"
+                type="text"
+                x-model="newMeal.type"
+                placeholder="e.g., Healthy, Quick, Traditional, Vegetarian"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Added search functionality for dishes -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2"
+                >Select Dishes</label
+              >
+              <div
+                x-show="dishes.length === 0"
+                class="text-gray-500 text-sm mb-2"
+              >
+                No dishes available. Add some dishes first.
+              </div>
+              <div x-show="dishes.length > 0">
+                <input
+                  type="text"
+                  x-model="dishSearchQuery"
+                  placeholder="Search dishes..."
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-3"
+                />
+                <div class="border rounded-lg p-3 max-h-48 overflow-y-auto">
+                  <div class="grid grid-cols-2 gap-2">
+                    <template
+                      x-for="dish in getFilteredDishes()"
+                      :key="dish.id"
+                    >
+                      <div class="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          :id="`dish-${dish.id}`"
+                          :value="dish.id"
+                          x-model="newMeal.dishIds"
+                          class="rounded border-gray-300"
+                        />
+                        <label
+                          :for="`dish-${dish.id}`"
+                          class="text-sm cursor-pointer flex items-center gap-1"
+                        >
+                          <span x-text="dish.name"></span>
+                          <span
+                            class="inline-block text-xs px-1 py-0.5 rounded text-white"
+                            :class="{
+                                                        'bg-orange-400': dish.category === 'Breakfast',
+                                                        'bg-green-400': dish.category === 'Lunch', 
+                                                        'bg-blue-400': dish.category === 'Dinner',
+                                                        'bg-purple-400': dish.category === 'Beverage',
+                                                        'bg-gray-400': dish.category === 'Side'
+                                                    }"
+                            x-text="dish.category.charAt(0)"
+                          ></span>
+                        </label>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+                <div
+                  x-show="newMeal.dishIds.length > 0"
+                  class="mt-2 text-sm text-gray-600"
+                >
+                  Selected:
+                  <span x-text="getSelectedDishNames().join(', ')"></span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2"
+                >Meal Times</label
+              >
+              <div class="grid grid-cols-3 gap-4">
+                <template
+                  x-for="mealTime in ['Breakfast', 'Lunch', 'Dinner']"
+                  :key="mealTime"
+                >
+                  <div class="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      :id="mealTime"
+                      :value="mealTime"
+                      x-model="newMeal.mealTimes"
+                      class="rounded border-gray-300"
+                    />
+                    <label
+                      :for="mealTime"
+                      class="text-sm font-normal cursor-pointer"
+                      x-text="mealTime"
+                    ></label>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+          <div class="p-6 border-t bg-gray-50 flex gap-3">
+            <button
+              @click="showAddMealModal = false; resetNewMeal()"
+              class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              @click="addMeal()"
+              :disabled="!newMeal.name || !newMeal.type || newMeal.mealTimes.length === 0 || newMeal.dishIds.length === 0"
+              :class="(!newMeal.name || !newMeal.type || newMeal.mealTimes.length === 0 || newMeal.dishIds.length === 0) ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'"
+              class="flex-1 text-white px-4 py-2 rounded-md transition-colors"
+            >
+              Create Meal
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <template
+      x-route="/create-plan"
+      name="create-plan"
+      x-template.target.router-content
+    >
+    </template>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

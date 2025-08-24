@@ -1,10 +1,14 @@
 import { Env } from "hono";
+import { JWTPayload } from "jose";
 
-type Environment = Env & {
+interface Environment extends Env {
   Bindings: {
     APP_DB: D1Database;
-    AUTH0_AUDIENCE: string;
+    AUTH_AUDIENCE: string;
     AUTH0_DOMAIN: string;
     JWT_SECRET: SecretsStoreSecret;
   };
-};
+  Variables: {
+    "auth-user"?: JWTPayload;
+  };
+}

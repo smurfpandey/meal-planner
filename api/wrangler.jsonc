@@ -23,7 +23,7 @@
   ],
 
   "vars": {
-    "AUTH0_AUDIENCE": "https://api.meal.guide",
+    "AUTH_AUDIENCE": "https://api.meal.guide",
     "AUTH0_DOMAIN": "smurfville-dev.eu.auth0.com",
   },
 

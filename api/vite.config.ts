@@ -8,4 +8,5 @@ export default defineConfig({
       experimental: { remoteBindings: true },
     }),
   ],
+  server: { port: 5174 },
 });

@@ -4,7 +4,11 @@
   "description": "A very simple meal planner app",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "api": "cd api && npm run dev",
+    "frontend": "cd frontend && npm run dev",
+    "start": "concurrently \"npm run frontend\" \"npm run api\"",
+    "prettify": "prettier --write ."
   },
   "repository": {
     "type": "git",
@@ -17,6 +21,7 @@
   },
   "homepage": "https://github.com/smurfpandey/meal-planner#readme",
   "devDependencies": {
-    "prettier": "3.6.2"
+    "prettier": "3.6.2",
+    "concurrently": "^9.2.0"
   }
 }

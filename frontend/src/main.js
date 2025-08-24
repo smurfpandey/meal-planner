@@ -3,6 +3,7 @@ import "./style.css";
 import { createAuth0Client } from "@auth0/auth0-spa-js";
 import Alpine from "alpinejs";
 import "basecoat-css/all";
+import { allFakers } from "@faker-js/faker";
 import { createIcons, icons } from "lucide";
 
 window.Alpine = Alpine;
@@ -40,7 +41,12 @@ const API = {
 };
 
 Alpine.data("mealPlanner", () => ({
-  activeTab: "home",
+  appState: {
+    isLoading: true,
+    isAuthenticated: false,
+    isOnboarding: false,
+    isSavingFamily: false,
+  },
   auth0: null,
   meals: [],
   dishes: [],
@@ -48,8 +54,16 @@ Alpine.data("mealPlanner", () => ({
   isLoading: false,
   currentWeekOffset: 0,
   user: null,
-  isAuthenticated: false,
   mealsError: null,
+  family: {
+    id: "",
+    name: "",
+    members: [{ email: "" }],
+  },
+  familyFormError: {
+    name: false,
+    members: [],
+  },
   days: [
     {
       key: "monday",
@@ -97,11 +111,14 @@ Alpine.data("mealPlanner", () => ({
     mealTime: [],
   },
 
+  renderIcons() {
+    createIcons({ icons });
+  },
+
   async init() {
     // Initialize Lucide icons
-    createIcons({ icons });
+    this.renderIcons();
     // Initialize Auth0
-    this.isLoading = true;
     await this.initAuth0();
   },
 
@@ -112,7 +129,7 @@ Alpine.data("mealPlanner", () => ({
         clientId: import.meta.env.VITE_AUTH0_CLIENT_ID,
         authorizationParams: {
           redirect_uri: window.location.origin,
-          audience: import.meta.env.VITE_AUTH0_AUDIENCE,
+          audience: import.meta.env.VITE_AUTH_AUDIENCE,
         },
         cacheLocation: "localstorage",
         useRefreshTokens: true,
@@ -129,16 +146,16 @@ Alpine.data("mealPlanner", () => ({
         );
       }
 
-      // Check authentication status
-      this.isAuthenticated = await this.auth0.isAuthenticated();
-      if (this.isAuthenticated) {
+      // Check auth0 authentication status
+      const auth0AuthState = await this.auth0.isAuthenticated();
+      if (auth0AuthState) {
         this.user = await this.auth0.getUser();
         await this.loginToApp();
       }
     } catch (error) {
       console.error("Auth0 initialization error:", error);
     } finally {
-      this.isLoading = false;
+      this.appState.isLoading = false;
     }
   },
 
@@ -148,8 +165,158 @@ Alpine.data("mealPlanner", () => ({
       cacheMode: "cache-only",
     });
 
-    // login to the app backend
-    console.log("Auth0 Token:", auth0Token);
+    if (!auth0Token) {
+      return;
+    }
+
+    // check if user is authenticated to app backend
+    const appToken = localStorage.getItem("appAccessToken");
+    if (!appToken) {
+      // get app access token from backend
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${auth0Token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Failed to authenticate with app backend: ${response.status} ${response.statusText}`,
+          );
+          return;
+        }
+
+        const data = await response.json();
+        this.families = data.families || [];
+        this.userId = data.user.id;
+        localStorage.setItem("appAccessToken", data.access_token);
+      } catch (error) {
+        console.error("Error logging in to app:", error);
+      }
+    } else {
+      // validate the app access token from backend
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/validate`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${appToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          localStorage.removeItem("appAccessToken");
+          this.loginToApp();
+          throw new Error(
+            `Failed to validate app access token: ${response.status} ${response.statusText}`,
+          );
+        }
+
+        const data = await response.json();
+        this.userId = data.user.id;
+        this.families = data.families || [];
+      } catch (error) {
+        console.error("Error validating app access token:", error);
+        localStorage.removeItem("appAccessToken");
+        return;
+      }
+    }
+    this.appState.isAuthenticated = true;
+
+    if (this.families.length === 0) {
+      this.appState.isOnboarding = true;
+      document.getElementById("createNewFamily").showModal();
+    }
+  },
+
+  generateRandomFamilyName() {
+    const locale = navigator.language || "en-IN";
+    const faker = allFakers[locale] || allFakers["en"];
+    this.family.name = faker.person.lastName() + " Family";
+  },
+
+  addFamilyMember() {
+    this.family.members.push({ email: "" });
+    this.$nextTick(() => createIcons({ icons }));
+  },
+
+  removeFamilyMember(index) {
+    if (this.family.members.length > 1) {
+      this.family.members.splice(index, 1);
+    } else {
+      this.family.members[0].email = "";
+    }
+  },
+
+  async createFamily() {
+    // Reset errors
+    this.familyFormError = { name: false, members: [] };
+    let hasError = false;
+
+    // Validate family name
+    if (!this.family.name.trim()) {
+      this.familyFormError.name = "Family name is required.";
+      hasError = true;
+    }
+
+    // Validate member emails
+    const emails = [];
+    this.family.members.forEach((member, idx) => {
+      const email = member.email?.trim();
+      if (!email) {
+        this.familyFormError.members[idx] = "";
+        return;
+      }
+      if (!/^\S+@\S+\.\S+$/.test(email)) {
+        this.familyFormError.members[idx] = "Invalid email format.";
+        hasError = true;
+      } else if (emails.includes(email.toLowerCase())) {
+        this.familyFormError.members[idx] = "Duplicate email.";
+        hasError = true;
+      } else {
+        this.familyFormError.members[idx] = "";
+        emails.push(email.toLowerCase());
+      }
+    });
+
+    if (hasError) {
+      return;
+    }
+    // ...existing code...
+    this.appState.isSavingFamily = true;
+
+    try {
+      const appToken = localStorage.getItem("appAccessToken");
+      const response = await fetch(`${API_BASE_URL}/families`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${appToken}`,
+        },
+        body: JSON.stringify(this.family),
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Failed to create family: ${response.status} ${response.statusText}`,
+        );
+      }
+
+      // refresh jwt token
+      localStorage.removeItem("appAccessToken");
+      await this.loginToApp();
+
+      const data = await response.json();
+      this.appState.isOnboarding = false;
+      document.getElementById("createNewFamily").close();
+    } catch (error) {
+      console.error("Error creating family:", error);
+    } finally {
+      this.appState.isSavingFamily = false;
+    }
   },
 
   getMealWeekLabel() {

@@ -13,9 +13,14 @@
 
   <body class="min-h-screen bg-gray-50" x-data="mealPlanner()" x-cloak>
     <div id="app" class="max-w-6xl mx-auto p-4 min-h-screen">
+      <!-- App Header -->
+      <header class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Meal Planner</h1>
+        <p class="text-gray-600">Plan your weekly meals and stay organized</p>
+      </header>
       <!-- Full Page Loader -->
       <div
-        x-show="isLoading"
+        x-show="appState.isLoading"
         class="min-h-screen flex items-center justify-center"
       >
         <div className="flex text-center gap-2 text-gray-600">
@@ -46,8 +51,8 @@
 
       <!-- Authentication required message -->
       <div
-        x-show="!isLoading && !isAuthenticated"
-        class="min-h-screen flex items-center justify-center text-center py-16"
+        x-show="!appState.isLoading && !appState.isAuthenticated"
+        class="flex items-center justify-center text-center py-16"
       >
         <div class="card">
           <header class="flex items-center justify-center">
@@ -76,14 +81,11 @@
         </div>
       </div>
 
-      <!-- Header -->
-      <header x-show="!isLoading && isAuthenticated" class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Meal Planner</h1>
-        <p class="text-gray-600">Plan your weekly meals and stay organized</p>
-      </header>
-
       <!-- Main app content - only show when authenticated -->
-      <div x-show="!isLoading && isAuthenticated" class="tabs">
+      <div
+        x-show="!appState.isLoading && appState.isAuthenticated && !appState.isOnboarding"
+        class="tabs"
+      >
         <!-- Navigation -->
         <nav role="tablist" aria-orientation="horizontal" class="w-full mb-6">
           <button
@@ -667,6 +669,90 @@
             Add individual food dishes that can be combined into meals
           </p>
         </header>
+      </article>
+    </dialog>
+
+    <dialog
+      id="createNewFamily"
+      class="dialog w-full sm:max-w-[425px] max-h-[612px]"
+      aria-labelledby="dialog-create-family-title"
+      aria-describedby="dialog-create-family-description"
+    >
+      <article>
+        <header>
+          <h2 id="dialog-add-dish-title">Welcome! Let's set up your family</h2>
+          <p id="dialog-add-dish-description">
+            You need a family to start planning meals. Please create one.
+          </p>
+        </header>
+
+        <section>
+          <div class="form grid gap-4">
+            <input type="hidden" x-model="family.id" />
+            <div class="grid gap-3">
+              <label for="input-family-name">Family Name</label>
+              <div class="flex items-center space-x-2">
+                <input
+                  id="input-family-name"
+                  type="text"
+                  x-model="family.name"
+                  placeholder="Mera Pariwar"
+                  autofocus
+                  :aria-invalid="familyFormError.name ? 'true' : 'false'"
+                />
+                <btn
+                  class="btn-icon-outline"
+                  @click="generateRandomFamilyName()"
+                  title="Randomize"
+                >
+                  <i data-lucide="shuffle"></i>
+                </btn>
+              </div>
+            </div>
+            <div class="grid gap-3">
+              <label class="block text-sm font-medium text-gray-700 mb-2"
+                >Family Members (Optional)</label
+              >
+              <template x-for="(member, index) in family.members" :key="index">
+                <div class="flex gap-2 mb-2">
+                  <input
+                    type="email"
+                    x-model="member.email"
+                    placeholder="Member Email"
+                    :aria-invalid="familyFormError.members[index] ? 'true' : 'false'"
+                  />
+                  <button
+                    type="button"
+                    @click="removeFamilyMember(index)"
+                    x-show="family.members.length > 1"
+                    class="btn-icon-outline hover:text-red-600"
+                  >
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  </button>
+                </div>
+              </template>
+
+              <button
+                type="button"
+                @click="addFamilyMember()"
+                class="btn-outline"
+              >
+                + Add another member
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <footer>
+          <button class="btn" @click="createFamily()">
+            <i
+              data-lucide="loader"
+              class="animate-spin w-4 h-4"
+              x-show="appState.isSavingFamily"
+            ></i>
+            Continue
+          </button>
+        </footer>
       </article>
     </dialog>
 

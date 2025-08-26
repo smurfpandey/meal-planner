@@ -371,6 +371,7 @@
                   aria-controls="tabs-subtab-panel-dishes"
                   aria-selected="false"
                   tabindex="0"
+                  @click="getDishes()"
                 >
                   <i data-lucide="package" class="w-4 h-4"></i>
                   Dishes
@@ -420,6 +421,11 @@
                 <div class="flex justify-between items-center mb-4">
                   <h3 class="text-lg font-medium">
                     All Dishes (<span x-text="dishes.length"></span>)
+                    <i
+                      data-lucide="refresh-cw"
+                      class="w-4 h-4 cursor-pointer animate-spin inline ml-1"
+                      x-show="appState.isLoadingDishes"
+                    ></i>
                   </h3>
                   <button
                     @click="showAddDishModal()"
@@ -430,12 +436,66 @@
                   </button>
                 </div>
 
-                <div x-show="dishes.length === 0" class="text-center py-8">
+                <div
+                  class="flex items-center gap-4"
+                  x-show="appState.isLoadingDishes && dishes.length === 0"
+                >
+                  <div
+                    class="bg-accent animate-pulse size-10 shrink-0 rounded-full"
+                  ></div>
+                  <div class="grid gap-2">
+                    <div
+                      class="bg-accent animate-pulse rounded-md h-4 w-[150px]"
+                    ></div>
+                    <div
+                      class="bg-accent animate-pulse rounded-md h-4 w-[100px]"
+                    ></div>
+                  </div>
+                </div>
+
+                <div
+                  x-show="!appState.isLoadingDishes && dishes.length === 0"
+                  class="text-center py-8"
+                >
                   <i
                     data-lucide="package"
                     class="w-12 h-12 mx-auto text-gray-400 mb-4"
                   ></i>
                   <p class="text-gray-600 mb-4">No dishes found</p>
+                </div>
+                <div
+                  x-show="dishes.length > 0"
+                  class="grid md:grid-cols-3 lg:grid-cols-4 gap-4"
+                >
+                  <template x-for="thisDish in dishes" :key="thisDish.id">
+                    <div class="card">
+                      <header>
+                        <h2 x-text="thisDish.name"></h2>
+                        <p x-text="thisDish.description"></p>
+                      </header>
+                      <section>
+                        <!--Tags -->
+                      </section>
+                      <footer>
+                        <div class="flex gap-2 mt-2">
+                          <button
+                            @click="editDish(thisDish)"
+                            class="flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                          >
+                            <i data-lucide="edit-2" class="w-3 h-3"></i>
+                            Edit
+                          </button>
+                          <button
+                            @click="confirmDeleteDish(thisDish)"
+                            class="flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                          >
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            Delete
+                          </button>
+                        </div>
+                      </footer>
+                    </div>
+                  </template>
                 </div>
               </div>
             </div>
@@ -664,11 +724,132 @@
     >
       <article>
         <header>
-          <h2 id="dialog-add-dish-title">Add New Dish</h2>
+          <h2 id="dialog-add-dish-title" x-show="!dish.id">Add New Dish</h2>
+          <h2 id="dialog-add-dish-title" x-show="dish.id">Edit Dish</h2>
           <p id="dialog-add-dish-description">
             Add individual food dishes that can be combined into meals
           </p>
         </header>
+        <section>
+          <div class="form grid gap-4">
+            <input type="hidden" x-model="dish.id" />
+            <div class="grid gap-3">
+              <label for="input-family-name">Dish Name</label>
+              <div class="flex items-center space-x-2">
+                <input
+                  id="input-dish-name"
+                  type="text"
+                  x-model="dish.name"
+                  placeholder="Something like Omelette, Bread, Tea, Rice"
+                  autofocus
+                  :aria-invalid="dishFormError.name ? 'true' : 'false'"
+                />
+                <btn
+                  class="btn-icon-outline"
+                  @click="generateRandomDishName()"
+                  title="Suggest a name"
+                >
+                  <i data-lucide="lightbulb"></i>
+                </btn>
+              </div>
+            </div>
+
+            <div class="grid gap-3">
+              <label for="input-family-name">Description</label>
+              <input
+                id="input-dish-desc"
+                type="text"
+                x-model="dish.description"
+                placeholder="Something like: A spicy Indian omelette with onions and tomatoes"
+                autofocus
+                :aria-invalid="dishFormError.description ? 'true' : 'false'"
+              />
+            </div>
+
+            <!-- Tags to be added later -->
+            <div class="grid gap-3 hidden">
+              <label for="input-family-name">Tags</label>
+              <input
+                id="input-dish-tags"
+                type="text"
+                x-model="dishTag"
+                @keydown.enter.prevent="addDishTag()"
+                placeholder="Something like Vegan, Gluten-Free, Spicy etc."
+                autofocus
+              />
+              <div>
+                <template x-for="(tag, index) in dish.tags" :key="index">
+                  <div>
+                    <span class="badge">
+                      <span x-text="tag"></span>
+                      <span @click="removeDishTag(index)">
+                        <i
+                          data-lucide="x"
+                          class="w-3 h-3 ml-1 cursor-pointer"
+                        ></i>
+                      </span>
+                    </span>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </section>
+        <footer>
+          <button
+            class="btn"
+            @click="saveDish()"
+            :disabled="appState.isSavingDish"
+          >
+            <i
+              data-lucide="loader"
+              class="animate-spin w-4 h-4"
+              x-show="appState.isSavingDish"
+            ></i>
+            Save Dish
+          </button>
+        </footer>
+      </article>
+    </dialog>
+
+    <!-- Delete Dish Dialog -->
+    <dialog
+      id="alert-dialog-deleteDish"
+      class="dialog"
+      aria-labelledby="alert-dialog-deleteDish-title"
+      aria-describedby="alert-dialog-deleteDish-description"
+      onclick="if (event.target === this) this.close()"
+    >
+      <article>
+        <header>
+          <h2 id="alert-dialog-deleteDish-title">Are you absolutely sure?</h2>
+          <p id="alert-dialog-deleteDish-description">
+            This action cannot be undone. This will remove
+            <span x-text="dish.name"></span> from all the existing meals as
+            well.
+          </p>
+        </header>
+
+        <footer>
+          <button
+            class="btn-outline"
+            onclick="document.getElementById('alert-dialog-deleteDish').close()"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn-destructive"
+            @click="deleteDish()"
+            :disabled="appState.isDeletingDish"
+          >
+            <i
+              data-lucide="loader"
+              class="animate-spin w-4 h-4"
+              x-show="appState.isDeletingDish"
+            ></i>
+            Delete
+          </button>
+        </footer>
       </article>
     </dialog>
 
@@ -744,7 +925,11 @@
         </section>
 
         <footer>
-          <button class="btn" @click="createFamily()">
+          <button
+            class="btn"
+            @click="createFamily()"
+            :disabled="appState.isSavingFamily"
+          >
             <i
               data-lucide="loader"
               class="animate-spin w-4 h-4"

@@ -9,6 +9,6 @@ interface Environment extends Env {
     JWT_SECRET: SecretsStoreSecret;
   };
   Variables: {
-    "auth-user"?: JWTPayload;
+    "auth-user"?: AppTokenPayload;
   };
 }

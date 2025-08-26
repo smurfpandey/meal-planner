@@ -21,7 +21,10 @@
   },
   "homepage": "https://github.com/smurfpandey/meal-planner#readme",
   "devDependencies": {
-    "prettier": "3.6.2",
-    "concurrently": "^9.2.0"
+    "concurrently": "^9.2.0",
+    "prettier": "3.6.2"
+  },
+  "dependencies": {
+    "zod": "^4.1.3"
   }
 }

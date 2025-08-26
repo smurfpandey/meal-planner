@@ -10,6 +10,11 @@ import {
 const APP_JWT_ISSUER = "urn:meal.guide:issuer";
 const APP_JWT_AUDIENCE = "https://api.meal.guide";
 
+export type AppTokenPayload = JWTPayload & {
+  email: string;
+  families: string[];
+};
+
 // Method to verify Auth0 access token and return user data
 export async function verifyAuth0Token(
   token: string,

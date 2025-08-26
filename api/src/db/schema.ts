@@ -1,6 +1,16 @@
-import { sql } from "drizzle-orm";
-import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { SQL, sql } from "drizzle-orm";
+import {
+  AnySQLiteColumn,
+  sqliteTable,
+  text,
+  unique,
+} from "drizzle-orm/sqlite-core";
 import { v7 as uuidv7 } from "uuid";
+
+// custom lower function
+export function lower(email: AnySQLiteColumn): SQL {
+  return sql`lower(${email})`;
+}
 
 const timestamps = {
   updated_at: text()
@@ -44,20 +54,24 @@ export const familyMember = sqliteTable("family_member", {
   ...timestamps,
 });
 
-export const dish = sqliteTable("dish", {
-  id: text()
-    .$defaultFn(() => uuidv7())
-    .primaryKey(),
-  name: text().notNull(),
-  description: text(),
-  family_id: text()
-    .notNull()
-    .references(() => family.id, { onDelete: "cascade" }),
-  created_by: text()
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
-  ...timestamps,
-});
+export const dish = sqliteTable(
+  "dish",
+  {
+    id: text()
+      .$defaultFn(() => uuidv7())
+      .primaryKey(),
+    name: text().notNull(),
+    description: text(),
+    family_id: text()
+      .notNull()
+      .references(() => family.id, { onDelete: "cascade" }),
+    created_by: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    ...timestamps,
+  },
+  (t) => [unique("dish_per_family").on(lower(t.name), t.family_id)],
+);
 
 export const meal = sqliteTable("meal", {
   id: text()

@@ -38,6 +38,86 @@ const API = {
 
     return await response.json();
   },
+
+  async getDishes() {
+    const response = await fetch(`${API_BASE_URL}/dishes`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("appAccessToken")}`,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(
+        `Failed to load dishes: ${response.status} ${response.statusText}`,
+      );
+    }
+    return await response.json();
+  },
+
+  async addDish(dish) {
+    const response = await fetch(`${API_BASE_URL}/dishes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("appAccessToken")}`,
+      },
+      body: JSON.stringify(dish),
+    });
+
+    if (!response.ok) {
+      // if status is 409, dish with same name exists
+      if (response.status === 409) {
+        const data = await response.json();
+        alert(data.message);
+      } else {
+        alert(`Failed to save dish: ${response.status} ${response.statusText}`);
+      }
+      return;
+    }
+
+    return await response.json();
+  },
+
+  async deleteDish(dishId) {
+    const response = await fetch(`${API_BASE_URL}/dishes/${dishId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("appAccessToken")}`,
+      },
+    });
+
+    if (!response.ok) {
+      alert(`Failed to delete dish: ${response.status} ${response.statusText}`);
+      return false;
+    }
+
+    return true;
+  },
+
+  async saveDish(dish) {
+    const response = await fetch(`${API_BASE_URL}/dishes/${dish.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("appAccessToken")}`,
+      },
+      body: JSON.stringify(dish),
+    });
+
+    if (!response.ok) {
+      // if status is 409, dish with same name exists
+      if (response.status === 409) {
+        const data = await response.json();
+        alert(data.message);
+      } else {
+        alert(
+          `Failed to update dish: ${response.status} ${response.statusText}`,
+        );
+      }
+      return;
+    }
+
+    return await response.json();
+  },
 };
 
 Alpine.data("mealPlanner", () => ({
@@ -46,6 +126,9 @@ Alpine.data("mealPlanner", () => ({
     isAuthenticated: false,
     isOnboarding: false,
     isSavingFamily: false,
+    isSavingDish: false,
+    isDeletingDish: false,
+    isLoadingDishes: false,
   },
   auth0: null,
   meals: [],
@@ -64,6 +147,25 @@ Alpine.data("mealPlanner", () => ({
     name: false,
     members: [],
   },
+
+  dishes: [],
+  dishesError: null,
+
+  // WIP
+  dish: {
+    name: "",
+    tags: [],
+    id: "",
+    description: "",
+  },
+  dishTag: "",
+
+  dishFormError: {
+    name: false,
+    tags: false,
+    description: false,
+  },
+
   days: [
     {
       key: "monday",
@@ -317,6 +419,106 @@ Alpine.data("mealPlanner", () => ({
     } finally {
       this.appState.isSavingFamily = false;
     }
+  },
+
+  // Dishes
+  async getDishes() {
+    this.appState.isLoadingDishes = true;
+    this.dishesError = null;
+
+    try {
+      const apiData = await API.getDishes();
+      this.dishes = apiData.dishes;
+    } catch (error) {
+      this.dishesError = error.message;
+      console.error("Error loading dishes:", error);
+    } finally {
+      this.appState.isLoadingDishes = false;
+      // Refresh icons after DOM update
+      this.$nextTick(() => createIcons({ icons }));
+    }
+  },
+
+  generateRandomDishName() {
+    const locale = navigator.language || "en-IN";
+    const faker = allFakers[locale] || allFakers["en"];
+    this.dish.name = faker.food.dish();
+  },
+
+  addDishTag() {
+    if (this.dishTag.trim() && !this.dish.tags.includes(this.dishTag.trim())) {
+      this.dish.tags.push(this.dishTag.trim());
+      this.dishTag = "";
+      this.$nextTick(() => createIcons({ icons }));
+    }
+  },
+
+  removeDishTag(index) {
+    this.dish.tags.splice(index, 1);
+  },
+
+  async saveDish() {
+    this.dishFormError = { name: false, tags: false, description: false };
+    let hasError = false;
+    if (!this.dish.name.trim()) {
+      this.dishFormError.name = "Dish name is required.";
+      hasError = true;
+    }
+
+    if (hasError) {
+      return;
+    }
+
+    this.appState.isSavingDish = true;
+    let savedDish;
+    if (this.dish.id) {
+      // Update existing dish
+      savedDish = await API.saveDish(this.dish);
+    } else {
+      // Create new dish
+      savedDish = await API.addDish(this.dish);
+    }
+
+    if (!savedDish) {
+      this.appState.isSavingDish = false;
+      // #TODO show error to user
+      return;
+    }
+
+    document.getElementById("addDishModal").close();
+    this.dish = { name: "", tags: [], description: "", id: "" };
+    this.appState.isSavingDish = false;
+    this.getDishes();
+  },
+
+  confirmDeleteDish(deleteDish) {
+    this.dish.id = deleteDish.id;
+    this.dish.name = deleteDish.name;
+    document.getElementById("alert-dialog-deleteDish").showModal();
+  },
+
+  async deleteDish() {
+    if (!this.dish.id) {
+      return;
+    }
+    this.appState.isDeletingDish = true;
+    const isDeleted = await API.deleteDish(this.dish.id);
+    this.appState.isDeletingDish = false;
+    if (!isDeleted) {
+      // #TODO show error to user
+      return;
+    }
+    this.dish = { name: "", tags: [], description: "", id: "" };
+    document.getElementById("alert-dialog-deleteDish").close();
+    this.getDishes();
+  },
+
+  editDish(editDish) {
+    this.dish.id = editDish.id;
+    this.dish.name = editDish.name;
+    this.dish.description = editDish.description;
+
+    this.showAddDishModal();
   },
 
   getMealWeekLabel() {

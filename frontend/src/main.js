@@ -256,8 +256,6 @@ Alpine.data("mealPlanner", () => ({
       }
     } catch (error) {
       console.error("Auth0 initialization error:", error);
-    } finally {
-      this.appState.isLoading = false;
     }
   },
 
@@ -297,6 +295,7 @@ Alpine.data("mealPlanner", () => ({
         localStorage.setItem("appAccessToken", data.access_token);
       } catch (error) {
         console.error("Error logging in to app:", error);
+        return;
       }
     } else {
       // validate the app access token from backend
@@ -327,6 +326,7 @@ Alpine.data("mealPlanner", () => ({
       }
     }
     this.appState.isAuthenticated = true;
+    this.appState.isLoading = false;
 
     if (this.families.length === 0) {
       this.appState.isOnboarding = true;

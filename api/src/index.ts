@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 
 import { Environment } from "../bindings";
 
@@ -8,6 +9,7 @@ import dishRoute from "./routes/dish";
 import familyRoute from "./routes/family";
 
 const app = new Hono<Environment>();
+app.use("/*", cors());
 
 app.get("/", (c) => c.text("Hello Cloudflare Workers!"));
 

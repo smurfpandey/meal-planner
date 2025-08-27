@@ -39,6 +39,7 @@
       ],
       "vars": {
         "AUTH0_DOMAIN": "smurfville.eu.auth0.com",
+        "AUTH_AUDIENCE": "https://api.meal.guide",
       },
       "secrets_store_secrets": [
         {

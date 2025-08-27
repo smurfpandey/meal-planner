@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "api",
+  "name": "frontend",
   "compatibility_date": "2025-08-03",
   "assets": {
     "not_found_handling": "single-page-application",

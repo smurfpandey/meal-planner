@@ -6,6 +6,10 @@
     "strict": true,
     "skipLibCheck": true,
     "lib": ["ESNext"],
-    "types": ["./worker-configuration.d.ts", "vite/client", "node"]
+    "types": ["./worker-configuration.d.ts", "vite/client", "node"],
+    "paths": {
+      "#schema": ["../schema"],
+      "#schema/*": ["../schema/*"]
+    }
   }
 }

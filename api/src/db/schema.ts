@@ -1,4 +1,4 @@
-import { SQL, sql } from "drizzle-orm";
+import { SQL, sql, relations } from "drizzle-orm";
 import {
   AnySQLiteColumn,
   sqliteTable,
@@ -54,24 +54,20 @@ export const familyMember = sqliteTable("family_member", {
   ...timestamps,
 });
 
-export const dish = sqliteTable(
-  "dish",
-  {
-    id: text()
-      .$defaultFn(() => uuidv7())
-      .primaryKey(),
-    name: text().notNull(),
-    description: text(),
-    family_id: text()
-      .notNull()
-      .references(() => family.id, { onDelete: "cascade" }),
-    created_by: text()
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    ...timestamps,
-  },
-  (t) => [unique("dish_per_family").on(lower(t.name), t.family_id)],
-);
+export const dish = sqliteTable("dish", {
+  id: text()
+    .$defaultFn(() => uuidv7())
+    .primaryKey(),
+  name: text().notNull(),
+  description: text(),
+  family_id: text()
+    .notNull()
+    .references(() => family.id, { onDelete: "cascade" }),
+  created_by: text()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  ...timestamps,
+});
 
 export const meal = sqliteTable("meal", {
   id: text()
@@ -140,3 +136,26 @@ export const mealPlanDetail = sqliteTable("meal_plan_detail", {
   }).notNull(),
   ...timestamps,
 });
+
+/* Relations */
+
+// Meal can have multiple dishes
+// A dish can belong to multiple meals
+// Many-to-Many relationship between Meal and Dish via MealDish table
+export const mealRelations = relations(meal, ({ many }) => ({
+  dishes: many(mealDish),
+}));
+
+export const dishRelations = relations(dish, ({ many }) => ({
+  meals: many(mealDish),
+}));
+export const mealDishRelations = relations(mealDish, ({ one }) => ({
+  dish: one(dish, {
+    fields: [mealDish.dish_id],
+    references: [dish.id],
+  }),
+  meal: one(meal, {
+    fields: [mealDish.meal_id],
+    references: [meal.id],
+  }),
+}));

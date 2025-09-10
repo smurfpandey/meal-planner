@@ -155,3 +155,4 @@ dist-ssr
 *.sw?
 
 .vite/
+.wrangler/

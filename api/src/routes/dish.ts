@@ -1,15 +1,15 @@
-import { Hono, Context } from "hono";
+import { Context } from "hono";
 import { and, eq, ne, sql } from "drizzle-orm";
 
 import { Environment } from "../../bindings"; // Importing the Environment type for type safety
 import { initDbConnect } from "../db/index";
 import { dish as dishTable, lower } from "../db/schema"; // Importing the meal table schema
-import { AppTokenPayload, validateAppTokenMiddleware } from "../utils/auth"; // Importing the authentication middleware
+import { AppTokenPayload } from "../utils/auth"; // Importing the authentication middleware
+import { getBaseRoute } from "./base";
 
 type NewDish = typeof dishTable.$inferInsert;
 
-const dishRoute = new Hono<Environment>().basePath("/dishes");
-dishRoute.use(validateAppTokenMiddleware());
+const dishRoute = getBaseRoute("/dishes", true);
 
 dishRoute.get("/", async (c: Context<Environment>) => {
   const db = initDbConnect(c.env.APP_DB);

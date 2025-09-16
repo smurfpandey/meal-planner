@@ -37,4 +37,5 @@ jobs:
           CLOUDFLARE_ENV: production
         uses: cloudflare/wrangler-action@v3
         with:
+          wranglerVersion: '4.37.0'
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

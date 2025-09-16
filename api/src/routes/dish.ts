@@ -11,12 +11,19 @@ type NewDish = typeof dishTable.$inferInsert;
 
 const dishRoute = getBaseRoute("/dishes", true);
 
-dishRoute.get("/", async (c: Context<Environment>) => {
-  const db = initDbConnect(c.env.APP_DB);
+dishRoute.get("/", async (ctx: Context<Environment>) => {
+  const db = initDbConnect(ctx.env.APP_DB);
 
-  const allDishes = await db.select().from(dishTable).all();
+  const authUser = ctx.get("auth-user");
+  const userId: string = authUser.sub;
+  const familyId: string = authUser?.families?.[0];
 
-  return c.json({
+  const allDishes = await db.query.dish.findMany({
+    where: eq(dishTable.family_id, familyId),
+    with: { meals: true },
+  });
+
+  return ctx.json({
     dishes: allDishes,
   });
 });

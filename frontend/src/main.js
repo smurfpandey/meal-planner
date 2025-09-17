@@ -2,123 +2,28 @@ import "./style.css";
 
 import { createAuth0Client } from "@auth0/auth0-spa-js";
 import Alpine from "alpinejs";
+import focus from "@alpinejs/focus";
+import tash from "alpinejs-tash";
 import "basecoat-css/all";
 import { allFakers } from "@faker-js/faker";
 import { createIcons, icons } from "lucide";
+
+import meal from "./components/meal";
+import dish from "./components/dish";
+
+Alpine.plugin(focus);
+Alpine.plugin(tash);
 
 window.Alpine = Alpine;
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-const API = {
-  async getMeals() {
-    const response = await fetch(`${API_BASE_URL}/meals`);
-    if (!response.ok) {
-      throw new Error(
-        `Failed to load meals: ${response.status} ${response.statusText}`,
-      );
-    }
-    return await response.json();
-  },
+const API = {};
 
-  async addMeal(meal) {
-    const response = await fetch("http://localhost:3000/meals", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(meal),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to save meal: ${response.status} ${response.statusText}`,
-      );
-    }
-
-    return await response.json();
-  },
-
-  async getDishes() {
-    const response = await fetch(`${API_BASE_URL}/dishes`, {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("appAccessToken")}`,
-      },
-    });
-    if (!response.ok) {
-      throw new Error(
-        `Failed to load dishes: ${response.status} ${response.statusText}`,
-      );
-    }
-    return await response.json();
-  },
-
-  async addDish(dish) {
-    const response = await fetch(`${API_BASE_URL}/dishes`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("appAccessToken")}`,
-      },
-      body: JSON.stringify(dish),
-    });
-
-    if (!response.ok) {
-      // if status is 409, dish with same name exists
-      if (response.status === 409) {
-        const data = await response.json();
-        alert(data.message);
-      } else {
-        alert(`Failed to save dish: ${response.status} ${response.statusText}`);
-      }
-      return;
-    }
-
-    return await response.json();
-  },
-
-  async deleteDish(dishId) {
-    const response = await fetch(`${API_BASE_URL}/dishes/${dishId}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("appAccessToken")}`,
-      },
-    });
-
-    if (!response.ok) {
-      alert(`Failed to delete dish: ${response.status} ${response.statusText}`);
-      return false;
-    }
-
-    return true;
-  },
-
-  async saveDish(dish) {
-    const response = await fetch(`${API_BASE_URL}/dishes/${dish.id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("appAccessToken")}`,
-      },
-      body: JSON.stringify(dish),
-    });
-
-    if (!response.ok) {
-      // if status is 409, dish with same name exists
-      if (response.status === 409) {
-        const data = await response.json();
-        alert(data.message);
-      } else {
-        alert(
-          `Failed to update dish: ${response.status} ${response.statusText}`,
-        );
-      }
-      return;
-    }
-
-    return await response.json();
-  },
-};
+Alpine.store("app", {
+  meals: [],
+  dishes: [],
+});
 
 Alpine.data("mealPlanner", () => ({
   appState: {
@@ -129,10 +34,11 @@ Alpine.data("mealPlanner", () => ({
     isSavingDish: false,
     isDeletingDish: false,
     isLoadingDishes: false,
+    isDeletingMeal: false,
+    isLoadingMeals: false,
+    isDishSelectorOpen: false,
   },
   auth0: null,
-  meals: [],
-  dishes: [],
   isLoadingMeals: false,
   isLoading: false,
   currentWeekOffset: 0,
@@ -207,11 +113,12 @@ Alpine.data("mealPlanner", () => ({
       sunday: {},
     },
   ],
-  newMeal: {
-    name: "",
-    type: "",
-    mealTime: [],
+
+  mealFormError: {
+    name: false,
+    dishes: false,
   },
+  searchDish: "",
 
   renderIcons() {
     createIcons({ icons });
@@ -254,6 +161,7 @@ Alpine.data("mealPlanner", () => ({
         this.user = await this.auth0.getUser();
         await this.loginToApp();
       }
+      this.appState.isLoading = false;
     } catch (error) {
       console.error("Auth0 initialization error:", error);
     }
@@ -266,6 +174,8 @@ Alpine.data("mealPlanner", () => ({
     });
 
     if (!auth0Token) {
+      this.appState.isLoading = false;
+      this.appState.isAuthenticated = false;
       return;
     }
 
@@ -421,29 +331,12 @@ Alpine.data("mealPlanner", () => ({
     }
   },
 
+  refreshMealsAndDishes() {
+    this.$dispatch("refreshdishes");
+    this.$dispatch("refreshmeals");
+  },
+
   // Dishes
-  async getDishes() {
-    this.appState.isLoadingDishes = true;
-    this.dishesError = null;
-
-    try {
-      const apiData = await API.getDishes();
-      this.dishes = apiData.dishes;
-    } catch (error) {
-      this.dishesError = error.message;
-      console.error("Error loading dishes:", error);
-    } finally {
-      this.appState.isLoadingDishes = false;
-      // Refresh icons after DOM update
-      this.$nextTick(() => createIcons({ icons }));
-    }
-  },
-
-  generateRandomDishName() {
-    const locale = navigator.language || "en-IN";
-    const faker = allFakers[locale] || allFakers["en"];
-    this.dish.name = faker.food.dish();
-  },
 
   addDishTag() {
     if (this.dishTag.trim() && !this.dish.tags.includes(this.dishTag.trim())) {
@@ -551,23 +444,6 @@ Alpine.data("mealPlanner", () => ({
     }
   },
 
-  async loadMeals() {
-    this.isLoadingMeals = true;
-    this.mealsError = null;
-
-    try {
-      const apiData = await API.getMeals();
-      this.meals = apiData.meals;
-    } catch (error) {
-      this.mealsError = error.message;
-      console.error("Error loading meals:", error);
-    } finally {
-      this.isLoadingMeals = false;
-      // Refresh icons after DOM update
-      this.$nextTick(() => createIcons({ icons }));
-    }
-  },
-
   assignMealToPlan(day, mealSlot, mealId) {
     if (!this.weeklyPlans[0]) {
       this.weeklyPlans[0] = {
@@ -584,7 +460,7 @@ Alpine.data("mealPlanner", () => ({
     if (mealId === "remove" || mealId === "") {
       delete this.weeklyPlans[0][day][mealSlot];
     } else {
-      const meal = this.meals.find((m) => m.id === mealId);
+      const meal = Alpine.store("app").meals.find((m) => m.id === mealId);
       if (meal) {
         this.weeklyPlans[0][day][mealSlot] = meal;
       }
@@ -592,7 +468,9 @@ Alpine.data("mealPlanner", () => ({
   },
 
   getMealsByMealTime(mealTime) {
-    return this.meals.filter((meal) => meal.mealTime.includes(mealTime));
+    return Alpine.store("app").meals.filter((meal) =>
+      meal.mealTime.includes(mealTime),
+    );
   },
   isPlanEmpty() {
     const currentPlan = this.getCurrentWeekPlan();
@@ -626,13 +504,12 @@ Alpine.data("mealPlanner", () => ({
     }
   },
 
-  showAddMealModal() {
-    document.getElementById("addMealModal").showModal();
-  },
-
   showAddDishModal() {
     document.getElementById("addDishModal").showModal();
   },
 }));
+
+Alpine.data("dish", dish);
+Alpine.data("meal", meal);
 
 Alpine.start();

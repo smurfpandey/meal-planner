@@ -30,6 +30,8 @@ jobs:
         run: npm ci
 
       - name: Build the project
+        env:
+          CLOUDFLARE_ENV: production
         run: npm run build
 
       - name: Deploy to Workers

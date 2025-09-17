@@ -4,6 +4,7 @@
   "compatibility_date": "2025-08-03",
   "compatibility_flags": ["nodejs_compat"],
   "main": "./src/index.ts",
+  "workers_dev": false,
   "d1_databases": [
     {
       "binding": "APP_DB",
@@ -13,7 +14,6 @@
       "experimental_remote": true,
     },
   ],
-
   "secrets_store_secrets": [
     {
       "binding": "JWT_SECRET",
@@ -46,6 +46,12 @@
           "binding": "JWT_SECRET",
           "store_id": "3dc811c1f13840e09cbcc91b6c72b716",
           "secret_name": "prd_meal-planner_jwt-secret",
+        },
+      ],
+      "routes": [
+        {
+          "pattern": "api.meal.smurfville.app",
+          "custom_domain": true,
         },
       ],
     },
